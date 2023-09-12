@@ -1,0 +1,6 @@
+*.dll
+*.exe
+*.lib
+/build*/
+/.vscode/
+/.cache/
