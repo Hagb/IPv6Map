@@ -2,9 +2,9 @@
 
 This DLL makes IPv4-only programs use dual-stack UDP socket, and maps IPv6 addresses to IPv4 for them.
 
-It is still in early development. Use at your risk.
-
 It is inspired by [Autopunch](https://github.com/delthas/autopunch/), and uses many codes from that.
+
+Still in early development. Use at your risk.
 
 ## How to use
 
