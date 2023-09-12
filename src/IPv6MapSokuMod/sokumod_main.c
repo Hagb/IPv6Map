@@ -48,8 +48,8 @@ LPVOID WINAPI my_GlobalLock(HGLOBAL hMem) {
 	if (tmp_v4_addr[start] == '\0')
 		return (LPVOID)str;
 	for (int i = start + 1; tmp_v4_addr[i] != '\0'; i++)
-		if (isspace(tmp_v4_addr[start])) {
-			tmp_v4_addr[start] = '\0';
+		if (isspace(tmp_v4_addr[i])) {
+			tmp_v4_addr[i] = '\0';
 			break;
 		}
 
