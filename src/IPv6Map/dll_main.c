@@ -10,6 +10,8 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved) {
 	return TRUE;
 }
 
-#define STRINGIZE(s) #s
+// https://stackoverflow.com/a/196093
+#define _QUOTE_(s) #s
+#define _STR_(s) _QUOTE_(s)
 
-EXTERN_C __declspec(dllexport) const char IPv6MapVersion[] = STRINGIZE(IPV6MAP_VERSION);
+__declspec(dllexport) const char IPv6MapVersion[] = _STR_(IPV6MAP_VERSION);
