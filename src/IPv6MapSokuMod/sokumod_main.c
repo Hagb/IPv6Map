@@ -21,7 +21,7 @@
 
 #define PATCH_ADDR (0x0040d42a)
 
-char tmp_v4_addr[32];
+char tmp_v4_addr[INET_ADDRSTRLEN];
 sockaddr6to4_t sockaddr6to4 = NULL;
 
 LPVOID WINAPI my_GlobalLock(HGLOBAL hMem) {
@@ -29,32 +29,36 @@ LPVOID WINAPI my_GlobalLock(HGLOBAL hMem) {
 	if (!str)
 		return (LPVOID)str;
 	DEBUG_LOG("clipboard: %s", str);
+
+	// strip str
+	while (isspace(*str) && *str != '\0')
+		str++;
+	if (*str == '\0')
+		return (LPVOID)str;
+	int stripped_length = strlen(str);
+	while (isspace(str[stripped_length]))
+		stripped_length--;
+	stripped_length++;
+	if (stripped_length + 1 > INET6_ADDRSTRLEN)
+		return (LPVOID)str;
+	char stripped_str[INET6_ADDRSTRLEN];
+	memcpy(stripped_str, str, stripped_length);
+	stripped_str[stripped_length] = '\0';
+
+	// convert address
 	struct sockaddr_in6 addr6 = {.sin6_family = AF_INET6, .sin6_flowinfo = 0, .sin6_port = 0};
 	struct sockaddr_in addr4 = {.sin_family = AF_INET, .sin_zero = {0}};
-	if (RtlIpv6StringToAddressExA(str, &addr6.sin6_addr, (ULONG *)&addr6.sin6_scope_id, &addr6.sin6_port) != STATUS_SUCCESS)
-		return (LPVOID)str;
+	if (RtlIpv6StringToAddressExA(stripped_str, &addr6.sin6_addr, (ULONG *)&addr6.sin6_scope_id, &addr6.sin6_port) != STATUS_SUCCESS)
+		return (LPVOID)stripped_str;
 	if (addr6.sin6_port == 0)
 		addr6.sin6_port = htons(10800);
 	sockaddr6to4(&addr6, &addr4);
 	ULONG size = sizeof(tmp_v4_addr);
 	if (RtlIpv4AddressToStringExA(&addr4.sin_addr, addr6.sin6_port, tmp_v4_addr, &size) != STATUS_SUCCESS)
-		return (LPVOID)str;
-
-	// strip tmp_v4_addr
-	int start = 0;
-	for (; tmp_v4_addr[start] != '\0'; start++)
-		if (!isspace(tmp_v4_addr[start]))
-			break;
-	if (tmp_v4_addr[start] == '\0')
-		return (LPVOID)str;
-	for (int i = start + 1; tmp_v4_addr[i] != '\0'; i++)
-		if (isspace(tmp_v4_addr[i])) {
-			tmp_v4_addr[i] = '\0';
-			break;
-		}
+		return (LPVOID)stripped_str;
 
 	DEBUG_LOG("clipboard convert to: %s (port: %hu)", tmp_v4_addr, ntohs(addr6.sin6_port));
-	return (LPVOID)(tmp_v4_addr + start);
+	return (LPVOID)tmp_v4_addr;
 }
 
 // Based on the code from autopunch mod (https://github.com/SokuDev/SokuMods/blob/master/modules/Autopunch/Autopunch.c)
