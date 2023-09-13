@@ -51,6 +51,8 @@ if(BUILD_FOR_SOKU)
 	target_compile_options(IPv6MapSokuMod PRIVATE
 		"$<$<CONFIG:DEBUG>:/MTd>"
 		"$<$<NOT:$<CONFIG:DEBUG>>:/MT>")
+	set_target_properties(IPv6Map PROPERTIES SUFFIX ".dat")
+
 endif()
 
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)
