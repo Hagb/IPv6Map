@@ -27,12 +27,12 @@ add_library(IPv6Map MODULE
         detours/src/disolia64.cpp
         detours/src/disolarm.cpp
         detours/src/disolarm64.cpp
-	src/IPv6Map/inject.c
-	src/IPv6Map/hash_addr.cpp
-	src/IPv6Map/addr_map.cpp
-	src/IPv6Map/my_socket.c
-	src/IPv6Map/socket.cpp
-	src/IPv6Map/dll_main.c
+        src/IPv6Map/inject.c
+        src/IPv6Map/hash_addr.cpp
+        src/IPv6Map/addr_map.cpp
+        src/IPv6Map/my_socket.c
+        src/IPv6Map/socket.cpp
+        src/IPv6Map/dll_main.c
         ${CMAKE_CURRENT_BINARY_DIR}/version.rc)
 target_link_libraries(IPv6Map PRIVATE shlwapi ws2_32 ntdll)
 target_include_directories(IPv6Map PRIVATE detours/src)
@@ -42,17 +42,17 @@ target_compile_options(IPv6Map PRIVATE
         "$<$<NOT:$<CONFIG:DEBUG>>:/MT>")
 
 if(BUILD_FOR_SOKU)
-	add_library(IPv6MapSokuMod MODULE
-		src/IPv6MapSokuMod/sokumod_main.c
+        add_library(IPv6MapSokuMod MODULE
+                src/IPv6MapSokuMod/sokumod_main.c
         src/IPv6MapSokuMod/sokuhooks.c
-		${CMAKE_CURRENT_BINARY_DIR}/version.rc)
-	target_link_libraries(IPv6MapSokuMod PRIVATE shlwapi ws2_32 ntdll)
-	target_include_directories(IPv6MapSokuMod PRIVATE src)
-	target_compile_definitions(IPv6MapSokuMod PRIVATE -DWIN32_LEAN_AND_MEAN -D_CRT_SECURE_NO_WARNINGS -DIPV6MAP_VERSION=${IPV6MAP_VERSION})
-	target_compile_options(IPv6MapSokuMod PRIVATE
-		"$<$<CONFIG:DEBUG>:/MTd>"
-		"$<$<NOT:$<CONFIG:DEBUG>>:/MT>")
-	set_target_properties(IPv6Map PROPERTIES SUFFIX ".dat")
+                ${CMAKE_CURRENT_BINARY_DIR}/version.rc)
+        target_link_libraries(IPv6MapSokuMod PRIVATE shlwapi ws2_32 ntdll)
+        target_include_directories(IPv6MapSokuMod PRIVATE src)
+        target_compile_definitions(IPv6MapSokuMod PRIVATE -DWIN32_LEAN_AND_MEAN -D_CRT_SECURE_NO_WARNINGS -DIPV6MAP_VERSION=${IPV6MAP_VERSION})
+        target_compile_options(IPv6MapSokuMod PRIVATE
+                "$<$<CONFIG:DEBUG>:/MTd>"
+                "$<$<NOT:$<CONFIG:DEBUG>>:/MT>")
+        set_target_properties(IPv6Map PROPERTIES SUFFIX ".dat")
 
 endif()
 
