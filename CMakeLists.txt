@@ -44,6 +44,7 @@ target_compile_options(IPv6Map PRIVATE
 if(BUILD_FOR_SOKU)
 	add_library(IPv6MapSokuMod MODULE
 		src/IPv6MapSokuMod/sokumod_main.c
+        src/IPv6MapSokuMod/sokuhooks.c
 		${CMAKE_CURRENT_BINARY_DIR}/version.rc)
 	target_link_libraries(IPv6MapSokuMod PRIVATE shlwapi ws2_32 ntdll)
 	target_include_directories(IPv6MapSokuMod PRIVATE src)

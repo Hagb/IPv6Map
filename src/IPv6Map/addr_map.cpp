@@ -53,36 +53,44 @@ int addr4to6(const in_addr *in4, in_addr6_with_scope *out6) {
 	return 0;
 }
 
-void addr6to4(const in_addr6_with_scope *in6, in_addr *out4) {
+int addr6to4(const in_addr6_with_scope *in6, in_addr *out4) {
 	if (((uint64_t *)in6->sin6_addr.u.Word)[0] == 0 && ((uint64_t *)in6->sin6_addr.u.Word)[1] == 0) {
 		// if in6 is [::]
 		out4->S_un.S_addr = 0;
-		return;
+		return 0;
 	}
 	if (((uint64_t *)in6->sin6_addr.u.Word)[0] == ((uint64_t *)in6addr_v4mappedprefix.u.Word)[0]
 		&& ((uint32_t *)in6->sin6_addr.u.Word)[2] == ((uint32_t *)in6addr_v4mappedprefix.u.Word)[2]) {
 		// if in6 is an IPv4 mapped address
 		out4->S_un.S_addr = ((uint32_t *)in6->sin6_addr.u.Word)[3];
-		return;
+		return 0;
 	}
 	ip_mutex.lock();
 	auto iter = map6to4.find(*in6);
 	if (iter == map6to4.end()) {
-		assert(map4endding <= MAPPED_IPV4_MAX - 1);
-		out4->S_un.S_addr = htonl(PREFIX | (++map4endding));
-		map4to6.insert({*out4, *in6});
-		map6to4.insert({*in6, *out4});
+		in_addr addr4;
+		do {
+			if (map4endding == MAPPED_IPV4_MAX) {
+				ip_mutex.unlock();
+				return 1;
+			}
+			addr4.S_un.S_addr = htonl(PREFIX | (++map4endding));
+		} while (map4to6.find(addr4) != map4to6.end() && (DEBUG_LOG("Unexpected usage of IPv6-mapped IPv4 addr"), 1));
+		map4to6.insert({addr4, *in6});
+		map6to4.insert({*in6, addr4});
+		*out4 = addr4;
 	} else {
 		*out4 = iter->second;
 	}
 	ip_mutex.unlock();
+	return 0;
 }
 
 __declspec(dllexport) int sockaddr6to4(const sockaddr_in6 *in6, sockaddr_in *out4) {
 	out4->sin_family = AF_INET;
 	out4->sin_port = in6->sin6_port;
 	*(uint64_t *)out4->sin_zero = 0;
-	addr6to4((in_addr6_with_scope *)(&in6->sin6_addr), &out4->sin_addr);
+	int ret = addr6to4((in_addr6_with_scope *)(&in6->sin6_addr), &out4->sin_addr);
 	// return value to do
 #if DEBUG
 	wchar_t v4[32];
@@ -96,9 +104,9 @@ __declspec(dllexport) int sockaddr6to4(const sockaddr_in6 *in6, sockaddr_in *out
 		WSAGetLastError();
 	WSASetLastError(error);
 	v6[95] = v4[31] = 0;
-	DEBUG_LOG("v4 addr: %ls ,v6 addr: %ls", v6, v4);
+	DEBUG_LOG("v6 addr: %ls ,v4 addr: %ls", v6, v4);
 #endif
-	return 0;
+	return ret;
 }
 
 __declspec(dllexport) int sockaddr4to6(const sockaddr_in *in4, sockaddr_in6 *out6) {
@@ -132,3 +140,7 @@ __declspec(dllexport) int sockaddr4to6(const sockaddr_in *in4, sockaddr_in6 *out
 #endif
 	return ret;
 }
+
+int get_sockaddr4_type(sockaddr_in);
+
+int get_sockaddr6_type(sockaddr_in6);
