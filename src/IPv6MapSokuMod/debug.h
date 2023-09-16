@@ -15,8 +15,8 @@
 
 #else
 #define DEBUG 0
-#define DEBUG_LOG(fmt, ...)
-#define DEBUG_ADDR(fmt, addr, ...)
+#define DEBUG_LOG(fmt, ...) 0
+#define DEBUG_ADDR(fmt, addr, ...) 0
 #endif
 
 #define WARN(fmt, ...) \
