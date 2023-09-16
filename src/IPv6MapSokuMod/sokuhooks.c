@@ -355,7 +355,6 @@ void HookFileIO() {
 	TamperNop((char *)ADDRESS_TXT_CREATEFILE_ADDR + 5);
 	TamperNearJmp(BEFORE_WRITE_IP_TO_CONFIG123_DAT, beforeWriteIpToConfig123Dat);
 	TamperNearJmp(BEFORE_READ_IP_FROM_CONFIG123_DAT, beforeReadIpFromConfig123Dat);
-	// TODO: hook reading and writing configex123.ini.
 }
 
 void SetupHooks() {
