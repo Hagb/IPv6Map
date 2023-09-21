@@ -31,7 +31,7 @@ add_library(IPv6Map MODULE
         src/IPv6Map/hash_addr.cpp
         src/IPv6Map/addr_map.cpp
         src/IPv6Map/my_socket.c
-        src/IPv6Map/socket.cpp
+        src/IPv6Map/socket_manage.cpp
         src/IPv6Map/dll_main.c
         ${CMAKE_CURRENT_BINARY_DIR}/version.rc)
 target_link_libraries(IPv6Map PRIVATE shlwapi ws2_32 ntdll)

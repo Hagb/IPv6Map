@@ -93,18 +93,11 @@ __declspec(dllexport) int sockaddr6to4(const sockaddr_in6 *in6, sockaddr_in *out
 	int ret = addr6to4((in_addr6_with_scope *)(&in6->sin6_addr), &out4->sin_addr);
 	// return value to do
 #if DEBUG
-	wchar_t v4[32];
-	wchar_t v6[96];
-	unsigned long v4len = 32;
-	unsigned long v6len = 96;
-	int error = WSAGetLastError();
-	if (WSAAddressToStringW((sockaddr *)out4, sizeof(struct sockaddr_in), NULL, v4, &v4len))
-		WSAGetLastError();
-	if (WSAAddressToStringW((sockaddr *)in6, sizeof(struct sockaddr_in6), NULL, v6, &v6len))
-		WSAGetLastError();
-	WSASetLastError(error);
-	v6[95] = v4[31] = 0;
-	DEBUG_LOG("v6 addr: %ls ,v4 addr: %ls", v6, v4);
+	// wchar_t v4[INET_ADDRSTRLEN];
+	// wchar_t v6[INET6_ADDRSTRLEN];
+	// addrtowstr(in6, v6);
+	// addrtowstr(out4, v4);
+	// DEBUG_LOG("v6 addr: %ls ,v4 addr: %ls", v6, v4);
 #endif
 	return ret;
 }
@@ -116,31 +109,20 @@ __declspec(dllexport) int sockaddr4to6(const sockaddr_in *in4, sockaddr_in6 *out
 	int ret = addr4to6(&in4->sin_addr, (in_addr6_with_scope *)(&out6->sin6_addr));
 #if DEBUG
 	if (ret) {
-		wchar_t v4[32];
-		unsigned long v4len = 32;
-		int error = WSAGetLastError();
-		if (WSAAddressToStringW((sockaddr *)in4, sizeof(struct sockaddr_in), NULL, v4, &v4len))
-			WSAGetLastError();
-		WSASetLastError(error);
+		wchar_t v4[INET_ADDRSTRLEN];
+		addrtowstr(in4, v4);
 		DEBUG_LOG("convert failed: v4 addr: %ls ", v4);
 	} else {
-		wchar_t v4[32];
-		wchar_t v6[96];
-		unsigned long v4len = 32;
-		unsigned long v6len = 96;
-		int error = WSAGetLastError();
-		if (WSAAddressToStringW((sockaddr *)in4, sizeof(struct sockaddr_in), NULL, v4, &v4len))
-			WSAGetLastError();
-		if (WSAAddressToStringW((sockaddr *)out6, sizeof(struct sockaddr_in6), NULL, v6, &v6len))
-			WSAGetLastError();
-		WSASetLastError(error);
-		v6[95] = v4[31] = 0;
-		DEBUG_LOG("v4 addr: %ls ,v6 addr: %ls", v4, v6);
+		// wchar_t v4[INET_ADDRSTRLEN];
+		// wchar_t v6[INET6_ADDRSTRLEN];
+		// addrtowstr(in4, v4);
+		// addrtowstr(out6, v6);
+		// DEBUG_LOG("v4 addr: %ls ,v6 addr: %ls", v4, v6);
 	}
 #endif
 	return ret;
 }
 
-int get_sockaddr4_type(sockaddr_in);
+// int get_sockaddr4_type(sockaddr_in);
 
-int get_sockaddr6_type(sockaddr_in6);
+// int get_sockaddr6_type(sockaddr_in6);

@@ -3,6 +3,16 @@
 #define STR_(a) #a
 #define STR(a) STR_(a)
 
+#define addrtowstr(psockaddr, wstr_array) \
+	do { \
+		DWORD len = sizeof(wstr_array);\
+		wcscpy((wstr_array), L"(an invaild address!)"); \
+		int error = WSAGetLastError(); \
+		if (WSAAddressToStringW((struct sockaddr *)(psockaddr), sizeof(*(psockaddr)), NULL, (wstr_array), &len)) \
+			WSAGetLastError(); \
+		WSASetLastError(error); \
+	} while (0)
+
 #ifndef NDEBUG
 #include <stdio.h>
 #include <stdlib.h>
