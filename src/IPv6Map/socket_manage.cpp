@@ -56,14 +56,14 @@ void ping_relay() {
 	socket_mutex.lock_shared();
 	for (auto iter = socket_set.begin(); iter != socket_set.end(); iter++)
 		if (iter->second) {
-			const char data[] = {'6', PUNCH_PING};
+			const struct punch_pingpong data = {'6', PUNCH_PING};
 			keep_alive_mutex.lock_shared();
 #if DEBUG
 			wchar_t v6str[INET6_ADDRSTRLEN];
 			addrtowstr(&relay_sockaddr, v6str);
 			DEBUG_LOG("[::]:%d ping %ls", iter->second, v6str);
 #endif
-			if (actual_sendto(iter->first, data, sizeof(data), 0, (const struct sockaddr *)&relay_sockaddr, sizeof(relay_sockaddr)) == SOCKET_ERROR) {
+			if (actual_sendto(iter->first, (const char *)&data, sizeof(data), 0, (const struct sockaddr *)&relay_sockaddr, sizeof(relay_sockaddr)) == SOCKET_ERROR) {
 				int error = WSAGetLastError();
 				DEBUG_LOG("error when pinging: %d", error);
 			}

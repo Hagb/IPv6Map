@@ -2,6 +2,7 @@
 
 #include "addr_map.h"
 #include "debug.h"
+#include "hash_addr.h"
 #include "socket_manage.h"
 #include <stdbool.h>
 #include <stdint.h>
@@ -19,39 +20,59 @@ int(WINAPI *actual_getsockname)(SOCKET s, struct sockaddr *name, int *namelen) =
 int(WINAPI *actual_getpeername)(SOCKET s, struct sockaddr *name, int *namelen) = getpeername;
 SOCKET(WINAPI *actual_socket)(int af, int type, int protocol) = socket;
 
-void debug_packet_information(const char *buf, int size) {
 #ifdef BUILD_FOR_SOKU
 #if BUILD_FOR_SOKU
-	if (size >= 1)
-		switch (*buf) {
-		case 0x1:
-			DEBUG_LOG("HELLO");
-			break;
-		case 0x3:
-			DEBUG_LOG("OLLEH");
-			break;
-		case 0x2:
-			DEBUG_LOG("PUNCH");
-			break;
-		case 0x5:
-			DEBUG_LOG("INIT_REQUEST");
-			break;
-		case 0x6:
-			DEBUG_LOG("INIT_SUCCESS");
-			break;
-		case 0x7:
-			if (size >= 5)
-				DEBUG_LOG("INIT_ERROR %d", *(int *)(buf + 1));
-			break;
-		case 0x8:
-			DEBUG_LOG("REDIRECT");
-			break;
-		case 0xB:
-			DEBUG_LOG("QUIT");
-			break;
-		}
+#define debug_packet_information(buf, size) \
+	do { \
+		if ((size) >= 1) \
+			switch (*(const char *)(buf)) { \
+			case 0x1: \
+				DEBUG_LOG("HELLO"); \
+				break; \
+			case 0x3: \
+				DEBUG_LOG("OLLEH"); \
+				break; \
+			case 0x2: \
+				DEBUG_LOG("PUNCH"); \
+				break; \
+			case 0x5: \
+				DEBUG_LOG("INIT_REQUEST"); \
+				break; \
+			case 0x6: \
+				DEBUG_LOG("INIT_SUCCESS"); \
+				break; \
+			case 0x7: \
+				if (size >= 5) \
+					DEBUG_LOG("INIT_ERROR %d", *(int *)(buf + 1)); \
+				break; \
+			case 0x8: \
+				DEBUG_LOG("REDIRECT"); \
+				break; \
+			case 0xB: \
+				DEBUG_LOG("QUIT"); \
+				break; \
+			} \
+	} while (0);
+#else
+inline void debugdebug_packet_information(const char *buf, int size) {}
 #endif
+#else
+inline void debugdebug_packet_information(const char *buf, int size) {}
 #endif
+
+void punch(SOCKET s, const struct in6_addr *to, uint16_t port, bool second) {
+	if (isIPv4MappedIPv6(to)) {
+		DEBUG_LOG("an ipv4, doesn't need to punch by ipv6map");
+		return;
+	}
+	DEBUG_LOG("send punch request (%d) to relay", second);
+	const struct punch_request request = {'6', PUNCH_FROM_CLIENT, second, *to, port};
+	const struct sockaddr_in6 *relay_addr = lockAndReadRelaySockaddr();
+	if (actual_sendto(s, (const char *)&request, sizeof(request), 0, (const struct sockaddr *)relay_addr, sizeof(*relay_addr)) == SOCKET_ERROR) {
+		int error = WSAGetLastError();
+		DEBUG_LOG("fail to send punch request: %d", error);
+	}
+	unlockRelaySockaddr();
 }
 
 inline bool check_sockaddr_in_and_set_error(const struct sockaddr *name, int namelen) {
@@ -160,7 +181,7 @@ int WINAPI my_recvfrom(SOCKET s, char *out_buf, int len, int flags, struct socka
 #endif
 		return ret;
 	}
-	debug_packet_information(out_buf, len);
+	debug_packet_information(out_buf, ret);
 	// DEBUG_LOG("recv %d", ret);
 	sockaddr6to4(&from, (struct sockaddr_in *)from_original);
 	if (fromlen_original != NULL)
@@ -192,34 +213,63 @@ int WINAPI my_recvfrom(SOCKET s, char *out_buf, int len, int flags, struct socka
 				break;
 			}
 			unlockRelaySockaddr();
-			uint16_t port = 0;
-			if (ret < 3 + 16 + 2 || 0 == (port = *(uint16_t *)(out_buf + 3 + 16)))
+			if (ret != sizeof(struct punch_request)) {
+				DEBUG_LOG("invaild punch requsst size %d, should be %zu", ret, sizeof(struct punch_request));
 				break;
-			struct sockaddr_in6 sockaddr = {AF_INET6, port, 0, *(struct in6_addr *)(out_buf + 3), 0};
-			{
-				char data[] = {'6', PUNCH_PING};
-				DEBUG_LOG("send ping for punch");
-				if (actual_sendto(s, data, sizeof(data), 0, (const struct sockaddr *)&sockaddr, sizeof(sockaddr)) == SOCKET_ERROR) {
-					int error = WSAGetLastError();
-					DEBUG_LOG("fail to send ping for punch: %d", error);
-				}
 			}
-			if (!out_buf[2]) {
-				char data[3 + 16 + 2] = {'6', PUNCH_FROM_CLIENT, 1};
-				memcpy(data + 3, &sockaddr.sin6_addr, 16);
-				memcpy(data + 3 + 16, &sockaddr.sin6_port, 2);
-				DEBUG_LOG("send punch request (1) to relay");
-				const struct sockaddr_in6 *relay_addr = lockAndReadRelaySockaddr();
-				if (actual_sendto(s, data, sizeof(data), 0, (const struct sockaddr *)relay_addr, sizeof(*relay_addr)) == SOCKET_ERROR) {
-					int error = WSAGetLastError();
-					DEBUG_LOG("fail to send punch request: %d", error);
-				}
-				unlockRelaySockaddr();
+			const struct punch_request *request_received = (const struct punch_request *)out_buf;
+			if (request_received->sin6_port == 0) {
+				DEBUG_LOG("port of PUUNCH_FROM_RELAY is unexpected zero");
+				break;
 			}
+			struct sockaddr_in6 sockaddr = {AF_INET6, request_received->sin6_port, 0, request_received->sin6_addr, 0};
+			const struct punch_pingpong data = {'6', PUNCH_PING};
+			DEBUG_LOG("send ping for punch");
+			if (actual_sendto(s, (const char *)&data, sizeof(data), 0, (const struct sockaddr *)&sockaddr, sizeof(sockaddr)) == SOCKET_ERROR) {
+				int error = WSAGetLastError();
+				DEBUG_LOG("fail to send ping for punch: %d", error);
+			}
+			if (!out_buf[2])
+				punch(s, &sockaddr.sin6_addr, sockaddr.sin6_port, true);
 			break;
 		case PUNCH_FROM_CLIENT:
 			DEBUG_LOG("unexpected punch packet from client! it should be sent to relay.");
 			break;
+		case V6_SOKU_HELLO:
+			if (ret != sizeof(struct v6_soku_hello)) {
+				DEBUG_LOG("invaild v6_soku_hello packet size %d, should be %zu", ret, sizeof(struct v6_soku_hello));
+				break;
+			}
+			DEBUG_LOG("receive v6_soku_hello");
+			const struct v6_soku_hello *v6_soku_hello_packet = (const struct v6_soku_hello *)out_buf;
+			struct soku_hello soku_hello_packet = {1, {AF_INET, v6_soku_hello_packet->peer_port, {0}, {0}}, {AF_INET, v6_soku_hello_packet->target_port, {0}, {0}}};
+			memcpy(soku_hello_packet.stuff, v6_soku_hello_packet->stuff, sizeof(soku_hello_packet.stuff));
+			if (addr6to4(&(struct in6_addr_with_scope){v6_soku_hello_packet->peer_address6, 0}, &soku_hello_packet.peer_address.sin_addr) != 0) {
+				DEBUG_LOG("fail to map to v4");
+				break;
+			}
+			if (addr6to4(&(struct in6_addr_with_scope){v6_soku_hello_packet->target_address6, 0}, &soku_hello_packet.target_address.sin_addr) != 0) {
+				DEBUG_LOG("fail to map to v4");
+				break;
+			}
+			memcpy(out_buf, &soku_hello_packet, sizeof(soku_hello_packet));
+			return sizeof(soku_hello_packet);
+		case V6_SOKU_REDIRECT:
+			if (ret != sizeof(struct v6_soku_redirect)) {
+				DEBUG_LOG("invaild v6_soku_redirect packet size %d, should be %zu", ret, sizeof(struct v6_soku_redirect));
+				break;
+			}
+			DEBUG_LOG("receive v6_soku_redirect");
+			const struct v6_soku_redirect *v6_soku_redirect_packet = (const struct v6_soku_redirect *)out_buf;
+			struct soku_redirect soku_redirect_packet = {8, v6_soku_redirect_packet->child_id, {AF_INET, v6_soku_redirect_packet->target_port, {0}, {0}}};
+			memcpy(soku_redirect_packet.stuff, v6_soku_redirect_packet->stuff, sizeof(soku_redirect_packet.stuff));
+			if (addr6to4(&(struct in6_addr_with_scope){v6_soku_redirect_packet->target_address6, 0}, &soku_redirect_packet.target_address.sin_addr) != 0) {
+				DEBUG_LOG("fail to map to v4");
+				break;
+			}
+			punch(s, &v6_soku_redirect_packet->target_address6, v6_soku_redirect_packet->target_port, false);
+			memcpy(out_buf, &soku_redirect_packet, sizeof(soku_redirect_packet));
+			return sizeof(soku_redirect_packet);
 		default:
 			DEBUG_LOG("unknown v6 relay packet %d", out_buf[1]);
 			break;
@@ -241,7 +291,72 @@ int WINAPI my_sendto(SOCKET s, const char *buf, int len, int flags, const struct
 		WSASetLastError(WSAEHOSTUNREACH);
 		return SOCKET_ERROR;
 	}
-	int ret = actual_sendto(s, buf, len, flags, (struct sockaddr *)&to, tolen);
+
+#ifdef BUILD_FOR_SOKU
+#if BUILD_FOR_SOKU
+	if (len >= 1)
+		switch (*buf) {
+		case 1:
+			if (len != sizeof(struct soku_hello)) {
+				DEBUG_LOG("invaild soku HELLO packet size %d, shuold be %zu", len, sizeof(struct soku_hello));
+				break;
+			}
+			const struct soku_hello *soku_hello_packet = (const struct soku_hello *)buf;
+			if (memcmp(&soku_hello_packet->peer_address, &soku_hello_packet->target_address, sizeof(struct sockaddr_in)) == 0) {
+				punch(s, &to.sin6_addr, to.sin6_port, false);
+			} else {
+				if (!isIPv6MappedIPv4(&soku_hello_packet->peer_address.sin_addr) && !isIPv6MappedIPv4(&soku_hello_packet->target_address.sin_addr))
+					break; // don't need to convert
+				struct in6_addr_with_scope peer6, target6;
+				DEBUG_LOG("send converted soku HELLO with ipv6 address");
+				if (addr4to6(&soku_hello_packet->peer_address.sin_addr, &peer6) != 0 || addr4to6(&soku_hello_packet->peer_address.sin_addr, &target6) != 0) {
+					DEBUG_LOG("fail to convert to IPv6");
+					break;
+				}
+				struct v6_soku_hello converted_soku_hello
+					= {'6', V6_SOKU_HELLO, peer6.sin6_addr, soku_hello_packet->peer_address.sin_port, target6.sin6_addr, soku_hello_packet->target_address.sin_port};
+				memcpy(converted_soku_hello.stuff, soku_hello_packet->stuff, sizeof(converted_soku_hello.stuff));
+				if (actual_sendto(s, (const char *)&converted_soku_hello, sizeof(converted_soku_hello), 0, (const struct sockaddr *)&to, sizeof(to)) == SOCKET_ERROR) {
+					int error = WSAGetLastError();
+					DEBUG_LOG("fail to send converted soku HELLO: %d", error);
+				}
+				return len;
+			}
+			break;
+		case 8:
+			if (len != sizeof(struct soku_redirect)) {
+				DEBUG_LOG("invaild soku REDIRECT packet size %d, shuold be %zu", len, sizeof(struct soku_redirect));
+				break;
+			}
+			const struct soku_redirect *soku_redirect_packet = (struct soku_redirect *)buf;
+#if DEBUG
+			wchar_t v4_str[INET_ADDRSTRLEN];
+			addrtowstr(&soku_redirect_packet->target_address, v4_str);
+#endif
+			if (!isIPv6MappedIPv4(&soku_redirect_packet->target_address.sin_addr)) {
+				DEBUG_LOG("soku REDIRECT %ls doesn't need to convert", v4_str);
+				break; // don't need to convert
+			}
+			struct in6_addr_with_scope target6;
+			DEBUG_LOG("send converted soku REDIRECT %ls wirh ipv6 address", v4_str);
+			if (addr4to6(&soku_redirect_packet->target_address.sin_addr, &target6) != 0) {
+				DEBUG_LOG("fail to convert to IPv6");
+				break;
+			}
+			struct v6_soku_redirect converted_soku_redirect
+				= {'6', V6_SOKU_REDIRECT, soku_redirect_packet->child_id, target6.sin6_addr, soku_redirect_packet->target_address.sin_port};
+			memcpy(converted_soku_redirect.stuff, soku_redirect_packet->stuff, sizeof(converted_soku_redirect.stuff));
+			if (actual_sendto(s, (const char *)&converted_soku_redirect, sizeof(converted_soku_redirect), 0, (const struct sockaddr *)&to, sizeof(to))
+				== SOCKET_ERROR) {
+				int error = WSAGetLastError();
+				DEBUG_LOG("faid to send converted soku REDIRECT: %d", error);
+			}
+			return len;
+		}
+#endif
+#endif
+
+	int ret = actual_sendto(s, buf, len, flags, (const struct sockaddr *)&to, tolen);
 #if DEBUG
 	if (ret == SOCKET_ERROR) {
 		int error = WSAGetLastError();
@@ -250,25 +365,6 @@ int WINAPI my_sendto(SOCKET s, const char *buf, int len, int flags, const struct
 	} else {
 		// DEBUG_LOG("send %d", ret);
 	}
-#endif
-#ifdef BUILD_FOR_SOKU
-#if BUILD_FOR_SOKU
-	if (ret != SOCKET_ERROR && len >= 37 && buf[0] == 0x1 && buf[1] == 0x2 && buf[2] == 0x0) {
-		// compare sin_family (2 bytes), sin_port (2 bytes) and sin_addr (4 bytes):
-		if (*(uint64_t *)(buf + 1) != *(uint64_t *)(buf + 1 + 16))
-			return ret;
-		DEBUG_LOG("send punch request (0) to relay");
-		char punch_request[3 + 16 + 2] = {'6', PUNCH_FROM_CLIENT, 0};
-		memcpy(punch_request + 3, &to.sin6_addr, 16);
-		memcpy(punch_request + 3 + 16, &to.sin6_port, 2);
-		const struct sockaddr_in6 *relay_addr = lockAndReadRelaySockaddr();
-		if (actual_sendto(s, punch_request, sizeof(punch_request), 0, (const struct sockaddr *)relay_addr, sizeof(*relay_addr)) == SOCKET_ERROR) {
-			int error = WSAGetLastError();
-			DEBUG_LOG("fail to send punch request: %d", error);
-		}
-		unlockRelaySockaddr();
-	}
-#endif
 #endif
 	return ret;
 }

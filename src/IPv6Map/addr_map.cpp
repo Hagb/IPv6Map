@@ -12,22 +12,15 @@
 #include <unordered_map>
 
 std::mutex ip_mutex;
-std::unordered_map<in_addr, in_addr6_with_scope> map4to6;
+std::unordered_map<in_addr, in6_addr_with_scope> map4to6;
 unsigned int map4endding = 0;
-std::unordered_map<in_addr6_with_scope, in_addr> map6to4;
-
-// 127.127.0.0/16
-#define PREFIX ((127u << 24) + (127u << 16) + (0u << 8) + (0u << 0))
-#define PREFIX_LENGTH (16)
-
-#define MASK (0xffffffffu << (32 - PREFIX_LENGTH))
-#define MAPPED_IPV4_MAX ((1u << (32 - PREFIX_LENGTH)) - 1)
+std::unordered_map<in6_addr_with_scope, in_addr> map6to4;
 
 #if (MASK & PREFIX) != PREFIX
 #error length of prefix > LENGTH length.
 #endif
 
-int addr4to6(const in_addr *in4, in_addr6_with_scope *out6) {
+int addr4to6(const in_addr *in4, in6_addr_with_scope *out6) {
 	if (in4->S_un.S_addr == 0) {
 		// if in4 is 0.0.0.0
 		DEBUG_LOG("0.0.0.0");
@@ -35,7 +28,7 @@ int addr4to6(const in_addr *in4, in_addr6_with_scope *out6) {
 		((uint64_t *)out6->sin6_addr.u.Word)[0] = ((uint64_t *)out6->sin6_addr.u.Word)[1] = 0;
 		return 0;
 	}
-	if (!((in4->S_un.S_addr & htonl(MASK)) == htonl(PREFIX))) {
+	if (!(isIPv6MappedIPv4(in4))) {
 		// if in4 is not mapped ipv4
 		IN6_SET_ADDR_V4MAPPED(&out6->sin6_addr, in4);
 		out6->sin6_scope_id.Value = 0;
@@ -53,14 +46,13 @@ int addr4to6(const in_addr *in4, in_addr6_with_scope *out6) {
 	return 0;
 }
 
-int addr6to4(const in_addr6_with_scope *in6, in_addr *out4) {
+int addr6to4(const in6_addr_with_scope *in6, in_addr *out4) {
 	if (((uint64_t *)in6->sin6_addr.u.Word)[0] == 0 && ((uint64_t *)in6->sin6_addr.u.Word)[1] == 0) {
 		// if in6 is [::]
 		out4->S_un.S_addr = 0;
 		return 0;
 	}
-	if (((uint64_t *)in6->sin6_addr.u.Word)[0] == ((uint64_t *)in6addr_v4mappedprefix.u.Word)[0]
-		&& ((uint32_t *)in6->sin6_addr.u.Word)[2] == ((uint32_t *)in6addr_v4mappedprefix.u.Word)[2]) {
+	if (isIPv4MappedIPv6(&in6->sin6_addr)) {
 		// if in6 is an IPv4 mapped address
 		out4->S_un.S_addr = ((uint32_t *)in6->sin6_addr.u.Word)[3];
 		return 0;
@@ -90,7 +82,7 @@ __declspec(dllexport) int sockaddr6to4(const sockaddr_in6 *in6, sockaddr_in *out
 	out4->sin_family = AF_INET;
 	out4->sin_port = in6->sin6_port;
 	*(uint64_t *)out4->sin_zero = 0;
-	int ret = addr6to4((in_addr6_with_scope *)(&in6->sin6_addr), &out4->sin_addr);
+	int ret = addr6to4((in6_addr_with_scope *)(&in6->sin6_addr), &out4->sin_addr);
 	// return value to do
 #if DEBUG
 	// wchar_t v4[INET_ADDRSTRLEN];
@@ -106,7 +98,7 @@ __declspec(dllexport) int sockaddr4to6(const sockaddr_in *in4, sockaddr_in6 *out
 	out6->sin6_family = AF_INET6;
 	out6->sin6_flowinfo = 0;
 	out6->sin6_port = in4->sin_port;
-	int ret = addr4to6(&in4->sin_addr, (in_addr6_with_scope *)(&out6->sin6_addr));
+	int ret = addr4to6(&in4->sin_addr, (in6_addr_with_scope *)(&out6->sin6_addr));
 #if DEBUG
 	if (ret) {
 		wchar_t v4[INET_ADDRSTRLEN];
