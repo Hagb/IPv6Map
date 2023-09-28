@@ -37,3 +37,9 @@ Refer to the comments in [`src/ipv6map.h`](./src/ipv6map.h).
 - IPv6-mapped IPv4 address collection
 - static mapping
 - a loader like autopunch-loader
+
+## Thank
+
+- Tstar, 永恒·天心 (yonghengtianxin) and 二回転: for testing
+- [delthas](https://github.com/delthas): for [touhou-protocol-docs](https://github.com/delthas/touhou-protocol-docs)
+- [Neto Becker / enebe-nb](https://github.com/enebe-nb): the IPv6Map Mod for Hisoutensoku uses some addresses found in [th123intl](https://github.com/enebe-nb/th123intl)
