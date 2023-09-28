@@ -36,4 +36,4 @@ Refer to the comments in [`src/ipv6map.h`](./src/ipv6map.h).
 - implement hooks of `WSA*` functions
 - IPv6-mapped IPv4 address collection
 - static mapping
-- a loader like 
+- a loader like autopunch-loader
