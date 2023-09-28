@@ -6,7 +6,7 @@ This document uses terms in [delthas/touhou-protocol-docs](https://github.com/de
 
 - Relay: a server, whose address is the AAAA record of `v6relay.hagb.name` and port is `12321`, runs [`relay.py`](./relay.py) to provides IPv6 UDP hole-punching service;
 - IPv6Mapped game client: a game client with IPv6Map Mod loaded;
-- IPv6-mapped IPv4 address: passed to 
+- IPv6-mapped IPv4 address: virtual IPv4 address mapped to IPv6 address, passed to Hisoutensoku from the network functions hooked by IPv6Map. For more details, refer to the comments of [src/ipv6map.h](./src/ipv6map.h).
 
 ## Packets
 
