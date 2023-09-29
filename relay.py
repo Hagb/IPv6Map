@@ -17,7 +17,7 @@ def main():
         if len(data) < 2 and data[0] == ord('6'):
             continue
         if data[1] == V6PacketHeader.PUNCH_PING:
-            s.sendto(b'6'+V6PacketHeader.PUNCH_PONG.to_bytes(1), ip)
+            s.sendto(b'6'+V6PacketHeader.PUNCH_PONG.to_bytes(1, 'big'), ip)
             print(f"get ping from {ip}")
             continue
         if data[1] == V6PacketHeader.PUNCH_FROM_CLIENT:
@@ -29,10 +29,11 @@ def main():
                 AF_INET6, data[3:3+16]), int.from_bytes(data[3+16:3+16+2], 'big'), 0, 0)
             s.sendto(
                 b'6' +
-                V6PacketHeader.PUNCH_FROM_RELAY.to_bytes(1) +
+                V6PacketHeader.PUNCH_FROM_RELAY.to_bytes(1, 'big') +
                 data[2:3] + from_addr_bytes,
                 to_addr)
-            print(f"receive and forward punch request ({data[2]}): {ip} to {to_addr}")
+            print(
+                f"receive and forward punch request ({data[2]}): {ip} to {to_addr}")
             continue
         print(f"unknown packet type {data[1]}")
 
