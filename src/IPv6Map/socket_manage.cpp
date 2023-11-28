@@ -13,7 +13,7 @@
 #include <ws2tcpip.h>
 #define IPV6_ADDR(a, b, c, d, e, f, g, h) \
 	{ ntohs((a)), ntohs((b)), ntohs((c)), ntohs((d)), ntohs((e)), ntohs((f)), ntohs((g)), ntohs((h)) }
-#define DEFAULT_RELAY_IP IPV6_ADDR(0x2409, 0x8a55, 0xc8c1, 0x7d10, 0x9840, 0x1d32, 0x28a1, 0xc045)
+#define DEFAULT_RELAY_IP IPV6_ADDR(0x2408, 0x400d, 0x1009, 0x3100, 0xf090, 0xee91, 0x3089, 0x2982)
 #define RELAY_DOMAIN ("v6relay.hagb.name")
 #define RELAY_PORT (12321)
 std::shared_mutex keep_alive_mutex;
