@@ -1,7 +1,7 @@
 #ifndef _IPV6MAP_H_
 #define _IPV6MAP_H_
-#include <windows.h>
 #include <winsock2.h>
+#include <windows.h>
 #include <in6addr.h>
 #include <libloaderapi.h>
 #include <ws2ipdef.h>
@@ -11,7 +11,7 @@
  * `sockaddr6to4` write the IPv6-mapped IPv4 address into out4, and return zero if and only if there is no error.
  * When this function called, a map will be created if the IPv6 address hasn't been mapped, or the
  * mapped IPv4 address will be got from the existing map if the IPv6 address has been mapped.
- * Once a IPv6 address is mapped successful, we can access it by access the IPv6-mapped IPv4 address.
+ * Once a IPv6 address is mapped successfully, we can access it by access the IPv6-mapped IPv4 address.
  * `[::]` will be mapped to `0.0.0.0`, and other IPv6 address will be mapped to `127.127.0.0/16`.
  * The map is stateful, and it is permanent until the process stops. So don't map too many IPv6 addresses.
  * But it is OK to call `sockaddr6to4` on one IPv6 address many times.
@@ -27,16 +27,17 @@ typedef int (*sockaddr6to4_t)(const struct sockaddr_in6 *in6, struct sockaddr_in
  */
 typedef int (*sockaddr4to6_t)(const struct sockaddr_in *in4, struct sockaddr_in6 *out6);
 
-#define __IPV6MAP_FILENAMES(type, prefix) ((type[]){prefix##"IPv6Map.dat", prefix##"IPv6Map.dll"})
-#define IPV6MAP_FILENAMES __IPV6MAP_FILENAMES(char *, )
-#define IPV6MAP_WFILENAMES __IPV6MAP_FILENAMES(wchar_t *, L)
+#define __IPV6MAP_FILENAMES(type, prefix) type{prefix##"IPv6Map.dat", prefix##"IPv6Map.dll"}
+#define IPV6MAP_FILENAMES __IPV6MAP_FILENAMES((char *[]), )
+#define IPV6MAP_WFILENAMES __IPV6MAP_FILENAMES((wchar_t *[]), L)
 
 /**
  * return the handle of loaded IPv6Map DLL. return `NULL` if it hasn't been loaded.
  */
 inline HMODULE getIPv6MapDll() {
-	for (int i = 0; i < sizeof(IPV6MAP_FILENAMES) / sizeof(IPV6MAP_FILENAMES[0]); i++) {
-		HMODULE ipv6map_dll = GetModuleHandle(IPV6MAP_FILENAMES[i]);
+	char *filenames[] = __IPV6MAP_FILENAMES(,);
+	for (int i = 0; i < sizeof(filenames) / sizeof(filenames[0]); i++) {
+		HMODULE ipv6map_dll = GetModuleHandle(filenames[i]);
 		if (ipv6map_dll && GetProcAddress(ipv6map_dll, "IPv6MapVersion"))
 			return ipv6map_dll;
 	}
