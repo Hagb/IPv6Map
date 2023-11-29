@@ -11,7 +11,7 @@ set(CMAKE_C_STANDARD 11)
 add_definitions(-DWINVER=0x0600 -D_WIN32_WINNT=0x0600)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(BUILD_FOR_SOKU "build for Touhou Hisoutensoku" OFF)
-set(IPV6MAP_VERSION "0.2.0" CACHE "STRING" "IPv6Map output DLL file version")
+set(IPV6MAP_VERSION "0.2.0.1" CACHE "STRING" "IPv6Map output DLL file version" FORCE)
 string(REPLACE "." ", " IPV6MAP_VERSION_COMMA "${IPV6MAP_VERSION}")
 configure_file(src/version.rc.in ${CMAKE_CURRENT_BINARY_DIR}/version.rc
         @ONLY NEWLINE_STYLE CRLF)
