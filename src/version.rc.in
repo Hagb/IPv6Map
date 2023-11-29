@@ -1,4 +1,29 @@
-1 VERSIONINFO
+#include <windows.h>
+VS_VERSION_INFO VERSIONINFO
 FILEVERSION @IPV6MAP_VERSION_COMMA@
+PRODUCTVERSION @IPV6MAP_VERSION_COMMA@
+FILEFLAGSMASK   VS_FFI_FILEFLAGSMASK
+FILEOS          VOS__WINDOWS32
+FILETYPE        VFT_DLL
+FILESUBTYPE     VFT2_UNKNOWN
+
 BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904E4"
+        BEGIN
+            VALUE "FileVersion",      "@IPV6MAP_VERSION@\0"
+            VALUE "ProductVersion",   "@IPV6MAP_VERSION@\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        /* The following line should only be modified for localized versions.     */
+        /* It consists of any number of WORD,WORD pairs, with each pair           */
+        /* describing a language,codepage combination supported by the file.      */
+        /*                                                                        */
+        /* For example, a file might have values "0x409,1252" indicating that it  */
+        /* supports English language (0x409) in the Windows ANSI codepage (1252). */
+        VALUE "Translation", 0x409, 1252
+    END
 END
